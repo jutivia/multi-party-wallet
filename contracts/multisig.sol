@@ -70,7 +70,7 @@ contract Wallet {
         if (msg.sender != admin) revert notAdmin();
         _;
     }
-
+    // modifier to check if transaction has been initiated already before owners add their  approvals
      modifier checkTransactionInitiated(uint _id){
         if (Proposals[_id].initiator == address(0)) revert transactionNotYetInitiated();
         _;
