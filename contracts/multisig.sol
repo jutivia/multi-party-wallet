@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity >=0.8.11 <0.9.0;
+pragma solidity ^ 0.8.11;
 contract Wallet {
     // --------------------------------Variables--------------------------------
     address private admin;
@@ -13,12 +13,12 @@ contract Wallet {
 
     // --------------------------------Structs--------------------------------
     struct proposal {
-    uint id;
     uint amount;
+    uint96 id;
     address initiator;
-    address payable to;
-    uint approver;
+    uint88 approver;
     bool finished;
+    address payable to;
     purpose choice;
     }
 
@@ -117,7 +117,7 @@ contract Wallet {
         currentId++;
         proposal storage o = Proposals[currentId];
         o.initiator = msg.sender;
-        o.id = currentId;
+        o.id = uint96(currentId);
         o.amount = _amount;
         o.to = payable(address(this));
         o.approver++;
@@ -132,7 +132,7 @@ contract Wallet {
 
     function checkIfQourumMet(uint256 _id) internal view returns(bool _quorumMet){
         proposal storage o = Proposals[_id];
-        uint approvers = o.approver * 100;
+        uint256 approvers = uint256(o.approver) * 100;
         uint minApprovers = quorum * owners.length;
         if (approvers >= minApprovers) _quorumMet = true;
         else  _quorumMet = false;

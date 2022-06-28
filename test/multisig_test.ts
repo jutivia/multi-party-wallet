@@ -1,19 +1,34 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import {Wallet} from '../typechain';
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
-describe("Greeter", function () {
-  it("Should return the new greeting once it's changed", async function () {
-    const Greeter = await ethers.getContractFactory("Greeter");
-    const greeter = await Greeter.deploy("Hello, world!");
-    await greeter.deployed();
 
-    expect(await greeter.greet()).to.equal("Hello, world!");
+let wallet: Wallet;
+let admin: SignerWithAddress;
+let owner1: SignerWithAddress;
+let owner2: SignerWithAddress;
+let owner3: SignerWithAddress;
+let owner4: SignerWithAddress;
+let owner5: SignerWithAddress;
 
-    const setGreetingTx = await greeter.setGreeting("Hola, mundo!");
 
-    // wait until the transaction is mined
-    await setGreetingTx.wait();
 
-    expect(await greeter.greet()).to.equal("Hola, mundo!");
+describe("Testing the Multi-party Wallet", function () {
+   this.beforeEach(async function () {
+    const a = await ethers.getContractFactory("Wallet");
+    wallet = await a.deploy();
+    await wallet.deployed();
+    const [addr1, addr2, addr3, addr4, addr5, addr6] = await ethers.getSigners();
+    admin = addr1;
+    owner1 = addr2
+    owner2 = addr3
+    owner3 = addr4
+    owner4 = addr5
+    owner5 = addr6
   });
+
+  // it("Should return the new greeting once it's changed", async function () {
+   
+  // });
 });
