@@ -4,9 +4,9 @@ pragma solidity ^ 0.8.11;
 contract Wallet {
     // --------------------------------Variables--------------------------------
     address private admin;
-    uint96  quorum;
+    uint96 public quorum;
     uint currentId;
-    address[] private owners;
+    address[] public owners;
     mapping(address => mapping(uint => bool)) private approvals;
     mapping(uint256 => proposal) public Proposals;
     enum purpose { Deposit, Withdraw }
@@ -24,6 +24,7 @@ contract Wallet {
 
     // --------------------------------Events --------------------------------
     event singleOwnwerAdded(address addr);
+    event singleOwnerRemoved(address addr);
     event multipleOwnerAdded (address[] addrs);
     event transactionInitiated(uint256 proposalId, uint256 amount, purpose choice);
     event quorumMet(bool _quorumMet);
@@ -36,11 +37,11 @@ contract Wallet {
     error canOnlyApproveOnce();
     error quorumNotmet();
     error notProposalInitiator();
-    error transactionAlreadyCompleted();
-    error functionPurposeMismatch();
+    error proposalAlreadyExecuted();
     error insufficientFunds();
     error wrongAmountTransferred();
     error invalidQuorum();
+    error ownerDoesNotexist(address _addr);
 
 
     // --------------------------------Constructor--------------------------------
@@ -90,7 +91,21 @@ contract Wallet {
         emit multipleOwnerAdded(_addresses);
     }
 
-    function checkOwnerExists (address _addr) view internal returns(bool ownerExists) {
+     function removeSingleOwner (address _addr) onlyAdmin external {
+        bool ownerExisist = checkOwnerExists(_addr);
+        if (!ownerExisist) revert ownerDoesNotexist(_addr);
+        address ownerToCompare = owners[owners.length-1];
+        for(uint i = 0; i < owners.length; i++){
+            if (owners[i] == _addr){
+                owners[i] = ownerToCompare; 
+            }
+        }
+        owners.pop();
+        emit singleOwnerRemoved(_addr);
+    } 
+    // This is an expensive operation. Might be removed
+
+    function checkOwnerExists (address _addr) view public returns(bool ownerExists) {
          bool matches;
         for (uint256 i ; i < owners.length; i++) {
             if (owners[i] == _addr) {
@@ -139,31 +154,19 @@ contract Wallet {
         return _quorumMet;
     }
 
-    function deposit (uint256 _id) external payable {
+    function executeProposal (uint256 _id) external payable {
         proposal storage o = Proposals[_id];
         if (o.initiator != msg.sender) revert notProposalInitiator();
-        if (o.finished) revert transactionAlreadyCompleted();
+        if (o.finished) revert proposalAlreadyExecuted();
         if (!checkIfQourumMet(_id)) revert quorumNotmet();
-        if(o.choice != purpose.Deposit) revert functionPurposeMismatch();
-        if (msg.value != o.amount) revert wrongAmountTransferred();
+        if(o.choice == purpose.Deposit){
+            if (msg.value != o.amount) revert wrongAmountTransferred();
+        } else if (o.choice == purpose.Withdraw){
+            uint256 contractBalance = address(this).balance;
+            if (contractBalance < o.amount) revert insufficientFunds();
+            payable(o.to).transfer(o.amount);
+        }
         o.finished = true;
-        emit proposalExecuted ({
-            initiator : o.initiator,
-            amount: o.amount,
-            quorum: o.approver,
-            choice: o.choice
-        });
-    }
-    function withdraw (uint256 _id) external {
-        proposal storage o = Proposals[_id];
-        if (o.initiator != msg.sender) revert notProposalInitiator();
-        if (o.finished) revert transactionAlreadyCompleted();
-        if (!checkIfQourumMet(_id)) revert quorumNotmet();
-        if(o.choice != purpose.Withdraw) revert functionPurposeMismatch(); 
-        uint256 contractBalance = address(this).balance;
-        if (contractBalance < o.amount) revert insufficientFunds();
-        payable(o.to).transfer(o.amount);
-         o.finished = true;
         emit proposalExecuted ({
             initiator : o.initiator,
             amount: o.amount,
