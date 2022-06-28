@@ -42,6 +42,7 @@ contract Wallet {
     error wrongAmountTransferred();
     error invalidQuorum();
     error ownerDoesNotexist(address _addr);
+    error transactionNotYetInitiated();
 
 
     // --------------------------------Constructor--------------------------------
@@ -51,6 +52,8 @@ contract Wallet {
     }
 
     // --------------------------------Modifiers--------------------------------
+
+    //modifier to ensure only added woners can all any funcion it's attached to
     modifier onlyOwners () {
         bool allowed = false;
         for (uint256 i; i<owners.length; i++) {
@@ -62,19 +65,27 @@ contract Wallet {
         _;
     }
 
+    // modifier to ensure only the admin can call any functions it is attached to
     modifier onlyAdmin {
         if (msg.sender != admin) revert notAdmin();
         _;
     }
 
+     modifier checkTransactionInitiated(uint _id){
+        if (Proposals[_id].initiator == address(0)) revert transactionNotYetInitiated();
+        _;
+    }
+
     // --------------------------------Functions--------------------------------
 
-    // _quorum should be entered with its in percentage
+    // this external function allows the admin to set a new quorum 
+    // _quorum should be entered with its in percentage i.e 0-100
     function setQuorum (uint _quorum) onlyAdmin external {
         if (_quorum > 100 || _quorum < 0) revert invalidQuorum();
         quorum = uint32(_quorum);
     } 
     
+    // this external function allows the admin to add an address as a owner in the owners address list
     function addSingleOwner (address _addr) onlyAdmin external {
         bool ownerExisist = checkOwnerExists(_addr);
         if (ownerExisist) revert ownerExistsAlready(_addr);
@@ -82,6 +93,7 @@ contract Wallet {
         emit singleOwnwerAdded(_addr);
     } 
 
+    // this external function allows the admin to add  multiple addresses as  owners in the owners address list
     function addMultipleOwner (address[] calldata _addresses) onlyAdmin external {
          for (uint256 i ; i < _addresses.length; i++) {
               bool ownerExisist = checkOwnerExists(_addresses[i]);
@@ -91,6 +103,7 @@ contract Wallet {
         emit multipleOwnerAdded(_addresses);
     }
 
+    // this external function allows the admin to remove an address as an owner, one at a time.
      function removeSingleOwner (address _addr) onlyAdmin external {
         bool ownerExisist = checkOwnerExists(_addr);
         if (!ownerExisist) revert ownerDoesNotexist(_addr);
@@ -103,8 +116,8 @@ contract Wallet {
         owners.pop();
         emit singleOwnerRemoved(_addr);
     } 
-    // This is an expensive operation. Might be removed
 
+    // this internal function checks to see if an address is already in the owners address array
     function checkOwnerExists (address _addr) view public returns(bool ownerExists) {
          bool matches;
         for (uint256 i ; i < owners.length; i++) {
@@ -119,7 +132,8 @@ contract Wallet {
         }
     }
 
-    function approveTransactionProposal (uint256 _id) external onlyOwners {
+    // this external function uses the Id passed to fetch its coresponding proposal and allows owners approve it.
+    function approveTransactionProposal (uint256 _id) external onlyOwners checkTransactionInitiated(_id) {
         if (approvals[msg.sender][_id]) revert canOnlyApproveOnce();
         proposal storage o = Proposals[_id];
         o.approver++;
@@ -128,6 +142,7 @@ contract Wallet {
         else emit quorumMet(false);
     }
 
+    // this external function allows an owner to initiate a transaction by passing the amount and transaction enum type( 0 || 1 )
     function initiaiteTransactionProposal (uint256 _amount, purpose _choice)  external onlyOwners {
         currentId++;
         proposal storage o = Proposals[currentId];
@@ -154,7 +169,7 @@ contract Wallet {
         return _quorumMet;
     }
 
-    function executeProposal (uint256 _id) external payable {
+    function executeProposal (uint256 _id) checkTransactionInitiated(_id) external payable {
         proposal storage o = Proposals[_id];
         if (o.initiator != msg.sender) revert notProposalInitiator();
         if (o.finished) revert proposalAlreadyExecuted();
