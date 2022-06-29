@@ -43,6 +43,7 @@ contract Wallet {
     error invalidQuorum();
     error ownerDoesNotexist(address _addr);
     error transactionNotYetInitiated();
+    error invalidAddress();
 
 
     // --------------------------------Constructor--------------------------------
@@ -87,6 +88,7 @@ contract Wallet {
     
     // this external function allows the admin to add an address as a owner in the owners address list
     function addSingleOwner (address _addr) onlyAdmin external {
+        if (_addr == address(0x0)) revert invalidAddress();
         bool ownerExisist = checkOwnerExists(_addr);
         if (ownerExisist) revert ownerExistsAlready(_addr);
         owners.push(_addr);
@@ -96,6 +98,7 @@ contract Wallet {
     // this external function allows the admin to add  multiple addresses as  owners in the owners address list
     function addMultipleOwner (address[] calldata _addresses) onlyAdmin external {
          for (uint256 i ; i < _addresses.length; i++) {
+             if (_addresses[i] == address(0x0)) revert invalidAddress();
               bool ownerExisist = checkOwnerExists(_addresses[i]);
            if (ownerExisist) revert ownerExistsAlready(_addresses[i]);
            owners.push(_addresses[i]);
