@@ -42,6 +42,7 @@ contract Wallet {
     error ownerDoesNotexist(address _addr);
     error transactionNotYetInitiated();
     error invalidAddress();
+    error transactionFailed();
 
 
     // --------------------------------Constructor--------------------------------
@@ -182,7 +183,8 @@ contract Wallet {
         } else if (o.choice == purpose.Withdraw){
             uint256 contractBalance = address(this).balance;
             if (contractBalance < o.amount) revert insufficientFunds();
-            payable(o.to).transfer(o.amount);
+            bool success = payable(o.to).transfer(o.amount);
+            if (!success) revert transactionFailed();
         }
         o.finished = true;
         emit proposalExecuted ({
