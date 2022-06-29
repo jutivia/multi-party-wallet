@@ -31,12 +31,10 @@ contract Wallet {
     event proposalExecuted(address initiator, uint256 amount, uint256 quorum, purpose choice);
 
     // --------------------------------Errors--------------------------------
-    error notAdmin();
-    error notOwner();
+    error notAuthorized();
     error ownerExistsAlready(address _addr);
     error canOnlyApproveOnce();
     error quorumNotmet();
-    error notProposalInitiator();
     error proposalAlreadyExecuted();
     error insufficientFunds();
     error wrongAmountTransferred();
@@ -62,13 +60,13 @@ contract Wallet {
                 allowed = true;
             }
         }
-         if (!allowed) revert notOwner();
+         if (!allowed) revert notAuthorized();
         _;
     }
 
     // modifier to ensure only the admin can call any functions it is attached to
     modifier onlyAdmin {
-        if (msg.sender != admin) revert notAdmin();
+        if (msg.sender != admin) revert notAuthorized();
         _;
     }
     // modifier to check if transaction has been initiated already before owners add their  approvals
@@ -176,7 +174,7 @@ contract Wallet {
     // external function to aallow the proposal initializer execute the proposal after quorum has been met
     function executeProposal (uint256 _id) checkTransactionInitiated(_id) external payable {
         proposal storage o = Proposals[_id];
-        if (o.initiator != msg.sender) revert notProposalInitiator();
+        if (o.initiator != msg.sender) revert notAuthorized();
         if (o.finished) revert proposalAlreadyExecuted();
         if (!checkIfQourumMet(_id)) revert quorumNotmet();
         if(o.choice == purpose.Deposit){
