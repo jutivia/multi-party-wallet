@@ -72,7 +72,7 @@ contract Wallet {
     }
     // modifier to check if transaction has been initiated already before owners add their  approvals
      modifier checkTransactionInitiated(uint _id){
-        if (Proposals[_id].initiator == address(0)) revert transactionNotYetInitiated();
+        if (Proposals[_id].initiator == address(0x0)) revert transactionNotYetInitiated();
         _;
     }
 
@@ -160,6 +160,7 @@ contract Wallet {
             });
     }
 
+    // internal function to check if the quorum for a particular proposal has been met
     function checkIfQourumMet(uint256 _id) internal view returns(bool _quorumMet){
         proposal storage o = Proposals[_id];
         uint256 approvers = uint256(o.approver) * 100;
@@ -169,6 +170,7 @@ contract Wallet {
         return _quorumMet;
     }
 
+    // external function to aallow the proposal initializer execute the proposal after quorum has been met
     function executeProposal (uint256 _id) checkTransactionInitiated(_id) external payable {
         proposal storage o = Proposals[_id];
         if (o.initiator != msg.sender) revert notProposalInitiator();
