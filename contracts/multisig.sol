@@ -96,7 +96,7 @@ contract Wallet {
              if (_addresses[i] == address(0x0)) revert invalidAddress();
               bool ownerExisist = checkOwnerExists(_addresses[i]);
            if (ownerExisist) revert ownerExistsAlready(_addresses[i]);
-            addressToOwner[_addr] = true;
+            addressToOwner[_addresses[i]] = true;
             owners++;
         }
         emit multipleOwnerAdded(_addresses);
@@ -175,8 +175,8 @@ contract Wallet {
         } else if (o.choice == purpose.Withdraw){
             uint256 contractBalance = address(this).balance;
             if (contractBalance < o.amount) revert insufficientFunds();
-            bool success = payable(o.to).transfer(o.amount);
-            if (!success) revert transactionFailed();
+            payable(o.to).transfer(o.amount);
+            // if (!success) revert transactionFailed();
         }
         o.finished = true;
         emit proposalExecuted ({
