@@ -6,7 +6,7 @@ contract Wallet {
     address private admin;
     uint96 public quorum;
     uint currentId;
-    address[] public owners;
+    mapping(address => bool) addressToOwner;
     mapping(address => mapping(uint => bool)) private approvals;
     mapping(uint256 => proposal) public Proposals;
     enum purpose { Deposit, Withdraw }
@@ -39,7 +39,7 @@ contract Wallet {
     error insufficientFunds();
     error wrongAmountTransferred();
     error invalidQuorum();
-    error ownerDoesNotexist(address _addr);
+    error ownerDoesNotExist(address _addr);
     error transactionNotYetInitiated();
     error invalidAddress();
     error transactionFailed();
@@ -55,13 +55,7 @@ contract Wallet {
 
     //modifier to ensure only added woners can all any funcion it's attached to
     modifier onlyOwners () {
-        bool allowed = false;
-        for (uint256 i; i<owners.length; i++) {
-            if (owners[i] == msg.sender) {
-                allowed = true;
-            }
-        }
-         if (!allowed) revert notAuthorized();
+         if (!addressToOwner[msg.sender]) revert notAuthorized();
         _;
     }
 
@@ -82,7 +76,7 @@ contract Wallet {
     // _quorum should be entered with its in percentage i.e 0-100
     function setQuorum (uint _quorum) onlyAdmin external {
         if (_quorum > 100 || _quorum < 0) revert invalidQuorum();
-        quorum = uint32(_quorum);
+        quorum = uint96(_quorum);
     } 
     
     // this external function allows the admin to add an address as a owner in the owners address list
@@ -90,7 +84,7 @@ contract Wallet {
         if (_addr == address(0x0)) revert invalidAddress();
         bool ownerExisist = checkOwnerExists(_addr);
         if (ownerExisist) revert ownerExistsAlready(_addr);
-        owners.push(_addr);
+        addressToOwner[_addr] = true;
         emit singleOwnwerAdded(_addr);
     } 
 
@@ -100,7 +94,7 @@ contract Wallet {
              if (_addresses[i] == address(0x0)) revert invalidAddress();
               bool ownerExisist = checkOwnerExists(_addresses[i]);
            if (ownerExisist) revert ownerExistsAlready(_addresses[i]);
-           owners.push(_addresses[i]);
+            addressToOwner[_addr] = true;
         }
         emit multipleOwnerAdded(_addresses);
     }
@@ -108,34 +102,27 @@ contract Wallet {
     // this external function allows the admin to remove an address as an owner, one at a time.
      function removeSingleOwner (address _addr) onlyAdmin external {
         bool ownerExisist = checkOwnerExists(_addr);
-        if (!ownerExisist) revert ownerDoesNotexist(_addr);
-        address ownerToCompare = owners[owners.length-1];
-        for(uint i = 0; i < owners.length; i++){
-            if (owners[i] == _addr){
-                owners[i] = ownerToCompare; 
-            }
-        }
-        owners.pop();
+        if (!ownerExisist) revert ownerDoesNotExist(_addr);
+        addressToOwner[_addr] = false;
         emit singleOwnerRemoved(_addr);
     } 
 
+    function removeMultipleOwners (address[] calldata _addresses) onlyAdmin external {
+         for (uint256 i ; i < _addresses.length; i++) {
+             if (_addresses[i] == address(0x0)) revert invalidAddress();
+              bool ownerExisist = checkOwnerExists(_addresses[i]);
+           if (!ownerExisist) revert ownerDoesNotExist(_addresses[i]);
+            addressToOwner[_addresses[i]] = false;
+        }
+        emit multipleOwnerAdded(_addresses);
+    }
     // this internal function checks to see if an address is already in the owners address array
     function checkOwnerExists (address _addr) view public returns(bool ownerExists) {
-         bool matches;
-        for (uint256 i ; i < owners.length; i++) {
-            if (owners[i] == _addr) {
-                matches = true;
-                ownerExists = true;
-                break;
-            }
-        }
-        if (!matches) {
-            ownerExists = false;
-        }
+       return addressToOwner[_addr];
     }
 
     // this external function uses the Id passed to fetch its coresponding proposal and allows owners approve it.
-    function approveTransactionProposal (uint256 _id) external onlyOwners checkTransactionInitiated(_id) {
+    function approveTransactionProposal (uint256 _id) external onlyOwners() checkTransactionInitiated(_id) {
         if (approvals[msg.sender][_id]) revert canOnlyApproveOnce();
         proposal storage o = Proposals[_id];
         o.approver++;
@@ -145,13 +132,13 @@ contract Wallet {
     }
 
     // this external function allows an owner to initiate a transaction by passing the amount and transaction enum type( 0 || 1 )
-    function initiaiteTransactionProposal (uint256 _amount, purpose _choice)  external onlyOwners {
+    function initiaiteTransactionProposal (uint256 _amount, purpose _choice, address _to)  external onlyOwners {
         currentId++;
         proposal storage o = Proposals[currentId];
         o.initiator = msg.sender;
         o.id = uint96(currentId);
         o.amount = _amount;
-        o.to = payable(address(this));
+        o.to = payable(_to);
         o.approver++;
         o.choice = _choice;
         approvals[msg.sender][currentId] = true;
