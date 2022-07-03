@@ -6,6 +6,7 @@ contract Wallet {
     address private admin;
     uint96 public quorum;
     uint currentId;
+    uint owners;
     mapping(address => bool) addressToOwner;
     mapping(address => mapping(uint => bool)) private approvals;
     mapping(uint256 => proposal) public Proposals;
@@ -85,6 +86,7 @@ contract Wallet {
         bool ownerExisist = checkOwnerExists(_addr);
         if (ownerExisist) revert ownerExistsAlready(_addr);
         addressToOwner[_addr] = true;
+        owners++;
         emit singleOwnwerAdded(_addr);
     } 
 
@@ -95,6 +97,7 @@ contract Wallet {
               bool ownerExisist = checkOwnerExists(_addresses[i]);
            if (ownerExisist) revert ownerExistsAlready(_addresses[i]);
             addressToOwner[_addr] = true;
+            owners++;
         }
         emit multipleOwnerAdded(_addresses);
     }
@@ -104,6 +107,7 @@ contract Wallet {
         bool ownerExisist = checkOwnerExists(_addr);
         if (!ownerExisist) revert ownerDoesNotExist(_addr);
         addressToOwner[_addr] = false;
+        owners--;
         emit singleOwnerRemoved(_addr);
     } 
 
@@ -113,6 +117,7 @@ contract Wallet {
               bool ownerExisist = checkOwnerExists(_addresses[i]);
            if (!ownerExisist) revert ownerDoesNotExist(_addresses[i]);
             addressToOwner[_addresses[i]] = false;
+            owners--;
         }
         emit multipleOwnerAdded(_addresses);
     }
@@ -153,7 +158,7 @@ contract Wallet {
     function checkIfQourumMet(uint256 _id) internal view returns(bool _quorumMet){
         proposal storage o = Proposals[_id];
         uint256 approvers = uint256(o.approver) * 100;
-        uint minApprovers = quorum * owners.length;
+        uint minApprovers = quorum * owners;
         if (approvers >= minApprovers) _quorumMet = true;
         else  _quorumMet = false;
         return _quorumMet;
